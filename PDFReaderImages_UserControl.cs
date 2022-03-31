@@ -41,6 +41,9 @@ namespace PDFReaderImages_UserControl
         bool AlreadySavedOnce = false;
         bool eraseAllRedo = true;
         int PDF_ConvertQuality = 125;
+
+        System.Drawing.Drawing2D.GraphicsPath mousePath = new System.Drawing.Drawing2D.GraphicsPath();
+
         /////////////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////////////////////
         //////////////////////////////  LISTS THAT HELPS US TRACE THINGS  ///////////////////////////////
@@ -86,11 +89,9 @@ namespace PDFReaderImages_UserControl
             this.MainScrollablePanel.AutoScroll = true;
             this.MainScrollablePanel.Scroll += (s, e) => { ScrollingHandele(); };
             this.MainScrollablePanel.MouseWheel += (s, e) => { ScrollingHandele(); };
-            //this.MainScrollablePanel.Anchor = (AnchorStyles.Top);
-            //this.MainScrollablePanel.Dock = DockStyle.Fill;
-            //this.Anchor = (AnchorStyles.Top);
-            //this.Dock = DockStyle.Fill;
         }
+
+
         private void UserControl1_Load(object sender, EventArgs e) { }
         public void PrintStatsCoords()
         {
@@ -276,14 +277,12 @@ namespace PDFReaderImages_UserControl
                 PictureBox Page = new PictureBox();
                 Page.Image = PDFEditor.Layout.ResizeImage(this.FromSinglePDF2ImagesList[i], this.FPageSize.Width, this.FPageSize.Height);
                 Page.Location = new Point(0, ((i) * this.pagesPadding + (i * Page.Image.Height)));
+                //Page.Location = new Point(200,0);
                 Page.Size = new Size(Page.Image.Width, Page.Image.Height);
                 this.PDF_Pages_pictureBoxList.Add(Page);
                 this.MainScrollablePanel.Controls.Add(this.PDF_Pages_pictureBoxList[i]);
                 this.AllChildrenOfPages_ByIndex.Add(new List<PictureBox> { Page });
-                //Page.Anchor = AnchorStyles.Top;
-                //MessageBox.Show("Page Size : "+Page.Size.ToString());
             }
-            //this.MainScrollablePanel.Size = this.FPageSize;
             this.BackColor = Color.DarkGray;
         }
         public int ReturnOnWhatPage_isThisPictureBox(PictureBox a)
@@ -310,7 +309,6 @@ namespace PDFReaderImages_UserControl
         }
         public void ScrollingHandele()
         {
-            this.UpdateWindowPosition(this.Parent.Location.X, this.Parent.Location.Y);
             for (int i = 0; i < this.PDF_Pages_pictureBoxList.Count; i++)
             {
                 if ((MainScrollablePanel.VerticalScroll.Value >= i * (this.PDF_Pages_pictureBoxList[0].Height + this.pagesPadding) - (this.Height / 2)) &&
@@ -334,7 +332,20 @@ namespace PDFReaderImages_UserControl
                     }
                 }
             }
+            /*int numberOfTextLinesToMove = 1;
+            int numberOfPixelsToMove = 5;
+
+            if (numberOfPixelsToMove != 0)
+            {
+                System.Drawing.Drawing2D.Matrix translateMatrix = new System.Drawing.Drawing2D.Matrix();
+                translateMatrix.Translate(0, numberOfPixelsToMove);
+                this.mousePath.Transform(translateMatrix);
+            }
+            this.MainScrollablePanel.Invalidate();*/
         }
+
+
+
         public void MergeTo1PDF(List<String> InFiles, String OutFile)
         {
             using (FileStream stream = new FileStream(OutFile, FileMode.Create))
@@ -562,20 +573,29 @@ namespace PDFReaderImages_UserControl
                 zero = 1;
             }
             Control c = sender as Control;
-            if ((this.Dragging) && (c != null) && (1+this.ReturnOnWhatPage_isThisPictureBox(((PictureBox)sender))==this.onWhatPageIM_RightNow))
+            /*MessageBox.Show("MousePosition  ["+MousePosition.ToString()+"]\n" +
+                            "ParentLocation ["+this.Parent.Location.ToString()+"]\n" +
+                            "Window         ["+this.WindowX.ToString()+","+this.WindowY.ToString()+"]\n" +
+                            "thisLocation   ["+this.Location.ToString()+"]\n" +
+                            "MainPanel      ["+this.MainScrollablePanel.Location.ToString()+"]");*/
+            if ((this.Dragging) && (c != null) && (1+this.ReturnOnWhatPage_isThisPictureBox(((PictureBox)sender))==this.onWhatPageIM_RightNow)&&(c.Location.X>this.MainScrollablePanel.Location.X))
             {
-                c.Location = new Point((int)(MousePosition.X-this.Parent.Location.X-(c.Width/2)-(Cursor.Size.Width/4))+1- WindowX, 
-                                       (int)(MousePosition.Y-this.Parent.Location.Y-(c.Height/2)-(Cursor.Size.Height))+1 -(One*(temp))+(this.ValueModuluPageSize*zero)- WindowY);
+                c.Location = new Point((int)(MousePosition.X-this.Parent.Location.X-(c.Width/2)-(Cursor.Size.Width/4))+1-this.WindowX - this.Location.X, 
+                                       (int)(MousePosition.Y-this.Parent.Location.Y-(c.Height/2)-(Cursor.Size.Height))+1-(One*(temp))+(this.ValueModuluPageSize*zero)-this.Location.Y-this.WindowY);
                 ((PictureBox)sender).BorderStyle = BorderStyle.FixedSingle;
                 this.Cursor = Cursors.Cross;
-                //MessageBox.Show("This Parent :"+this.Parent.Location.ToString()+"      this Location : "+this.Location.ToString()+"     This Windows :"+this.WindowX.ToString());
+            }
+            else if (c.Location.X < this.MainScrollablePanel.Location.X)
+            {
+                c.Location = new Point(c.Location.X + 5, c.Location.Y);
+            }
+            else if (c.Location.X > this.MainScrollablePanel.Width)
+            {
+                c.Location = new Point(c.Location.X - 5, c.Location.Y);
             }
             this.pagesPadding = this.tempPadding;
             this.tempPadding = -1;
-
-
-      
-
+            this.MainScrollablePanel.Invalidate();
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////
         /////////////////////////////////////////////////////////////////////////////////
@@ -596,7 +616,7 @@ namespace PDFReaderImages_UserControl
                 Name = "pictureBox",
                 Size = new Size(LoadingImage.Width, LoadingImage.Height),
                 Location = new Point((this.PDF_Pages_pictureBoxList[0].Width / 2) - (LoadingImage.Width / 2),
-                                     (this.PDF_Pages_pictureBoxList[0].Height / 2) - (LoadingImage.Height / 2)),
+                                     100),
                 // Location = new Point((this.PDF_Pages_pictureBoxList[0].Width/2)-(LoadingImage.Width/2) , (this.PDF_Pages_pictureBoxList[0].Height / 2) - (LoadingImage.Height / 2)),
                 BackColor = Color.Transparent,
                 Image = LoadingImage,
@@ -626,7 +646,6 @@ namespace PDFReaderImages_UserControl
             this.PDF_Pages_pictureBoxList[CurrentIndex].Controls.Add(TestPic);
             this.AllChildrenOfPages_ByIndex[CurrentIndex].Add(TestPic);
             TestPic.BringToFront();
-            MessageBox.Show("Stamp put on - Location: "+TestPic.Location.ToString()+"       Page : "+(CurrentIndex+1)+"     Delta : "+this.ValueModuluPageSize);
         }
     }
 }
