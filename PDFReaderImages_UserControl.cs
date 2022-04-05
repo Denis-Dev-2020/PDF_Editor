@@ -1,28 +1,19 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using SautinSoft;
-using iTextSharp;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
-using System.Drawing.Drawing2D;
-using System.Diagnostics;
 namespace PDFReaderImages_UserControl
 {
     public partial class UserControl1 : UserControl
     {
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////   IMPORTANT GLOBAL VARIABLES    ////////////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////////
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ IMPORTANT GLOBAL VARIABLES ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         Document pdoc = new Document(PageSize.A4, 20f, 20f, 30f, 30f);
         Panel MainScrollablePanel = new Panel();
         Size FPageSize = new Size(0, 0);
@@ -48,11 +39,15 @@ namespace PDFReaderImages_UserControl
         bool eraseAllRedo = true;
         int PDF_ConvertQuality = 125;
         System.Drawing.Drawing2D.GraphicsPath mousePath = new System.Drawing.Drawing2D.GraphicsPath();
-        
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        //////////////////////////////  LISTS THAT HELPS US TRACE THINGS  ///////////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////////
+        string OUTPUTPDF = @"";
+        string SignaturePath = @"";
+        string PDFs_NeedToMerge_Path = @"";
+        #region ||~~~~~ MINIMUM STAMP SIZE (10px x 10px) ~~~~||
+        int stampWidth = 200;
+        int stampHeight = 150;
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~ GLOBAL LISTS THAT HELPS US TRACE THINGS ~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         List<PictureBox> Stamps_pictureBoxList = new List<PictureBox>();
         List<PictureBox> PDF_Pages_pictureBoxList = new List<PictureBox>();
         List<List<PictureBox>> AllChildrenOfPages_ByIndex = new List<List<PictureBox>>();
@@ -62,18 +57,10 @@ namespace PDFReaderImages_UserControl
         List<PDFEditor.StampLine> stamplines = new List<PDFEditor.StampLine>();
         List<PictureBox> UndoList = new List<PictureBox>();
         List<PictureBox> RedoList = new List<PictureBox>();
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        string OUTPUTPDF = @"";
-        string SignaturePath = @"";
-        string PDFs_NeedToMerge_Path = @"";
-        #region MINIMUM STAMP SIZE (10px x 10px)
-        int stampWidth = 200;
-        int stampHeight = 150;
-        #endregion
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         public UserControl1()
         {
-
-
+            #region ||~~~~~~~~~~~~~ PANEL INITIALIZATION AND STAMP SIZE CHECK ~~~~~~~~~~~~~~||
             if (this.stampHeight < 10 || this.stampWidth < 10)
             {
                 while (true)
@@ -83,8 +70,6 @@ namespace PDFReaderImages_UserControl
                 }
             }
             InitializeComponent();
-            //this.MainScrollablePanel.Location = new Point(0, 0);
-            //this.Location = new Point(0, 800);
             this.MainScrollablePanel.Width = this.Width - System.Windows.Forms.SystemInformation.VerticalScrollBarWidth;
             this.MainScrollablePanel.BackColor = System.Drawing.Color.DarkGray;
             this.Controls.Add(MainScrollablePanel);
@@ -97,58 +82,10 @@ namespace PDFReaderImages_UserControl
             this.MainScrollablePanel.Scroll += (s, e) => { ScrollingHandele(); };
             this.MainScrollablePanel.MouseWheel += (s, e) => { ScrollingHandele(); };
             DoubleBuffered = true;
-            
+            #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         }
-
-
-        private void UserControl1_Load(object sender, EventArgs e) { }
-        public void PrintStatsCoords()
-        {
-
-            MessageBox.Show("this parent:      " + this.Parent.Location.ToString());
-            MessageBox.Show("this window:      [" + this.WindowX.ToString()+","+this.WindowY.ToString()+"]");
-            MessageBox.Show("this parent size:      " + this.Parent.Size.ToString());
-            MessageBox.Show("this Scroll Y:    " + this.MainScrollablePanel.VerticalScroll.Value.ToString());
-            MessageBox.Show("this Panel Location:    " + this.MainScrollablePanel.Location.ToString());
-            MessageBox.Show("this Panel Size:    " + this.MainScrollablePanel.Size.ToString());
-            MessageBox.Show("this Location:    " + this.Location.ToString());
-            MessageBox.Show("this Size:    " + this.Size.ToString());
-            MessageBox.Show("this Page Y:      " + this.PDF_Pages_pictureBoxList[this.onWhatPageIM_RightNow-1].Location.Y.ToString());
-            MessageBox.Show("this Mouse:       " + MousePosition.ToString());
-            MessageBox.Show("UserControl Location [" + this.UserControlX.ToString() + "," + this.UserControlY.ToString() + "]");
-        }
-        public void UndoAction()
-        {
-            this.eraseAllRedo = false;
-            if (this.UndoList.Count > 0)
-            {
-                this.UndoList[this.UndoList.Count - 1].Visible = false;
-                this.RedoList.Add(this.UndoList[this.UndoList.Count - 1]);
-                this.UndoList.RemoveAt(this.UndoList.Count - 1);
-            }
-        }
-        public void RedoAction()
-        {
-            if ((this.RedoList.Count > 0) && (this.eraseAllRedo != true))
-            {
-                this.RedoList[this.RedoList.Count - 1].Visible = true;
-                this.UndoList.Add(this.RedoList[this.RedoList.Count - 1]);
-                this.RedoList.RemoveAt(this.RedoList.Count - 1);
-            }
-            else
-            {
-                for (int i = 0; i < this.RedoList.Count; i++)
-                {
-                    this.RedoList.RemoveAt(i);
-                    this.RedoList = null;
-                    this.RedoList = new List<PictureBox>();
-                }
-            }
-        }
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////////////   SETTERS FROM MAGICXPA TO CONTROL OF /////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        //~~~~~~~~~~~~~~~~~~~ STAMP SETTERS  ~~~~~~~~~~~~~~~~~~~~~~//
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SETTERS TO CONTROL FROM M-XPA ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~ STAMP SETTERS ~~~~~~~~~~~~~~~~~~~||
         public void SetStampRectangleWidth(int a)
         {
             this.stampWidth = a;
@@ -166,8 +103,8 @@ namespace PDFReaderImages_UserControl
             PDFEditor.StampLine line = new PDFEditor.StampLine(linetext, linefont, linefontstyle, linefontsize, linetextcolor);
             this.stamplines.Add(line);
         }
-        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
-        //~~~~~~~~~~~~~~~~~~~~~ BASIC CONFIG ~~~~~~~~~~~~~~~~~~~~~~~~//
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~ BASIC CONFIG ~~~~~~~~~~~~~~~~~~~||
         public void SetOutputPDF_Path(string path)
         {
             this.OUTPUTPDF = path;
@@ -189,138 +126,42 @@ namespace PDFReaderImages_UserControl
         {
             this.PDF_ConvertQuality = x;
         }
-        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
-        /////////////////////////////////////////////////////////////////////////////////////////////////////
-        public int FindLargestRowIn_stamplines()
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INITIALIZE ONCE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        private void UserControl1_Load(object sender, EventArgs e) { }
+        public void ScrollingHandele()
         {
-            int max = 0;
-            for (int i = 0; i < this.stamplines.Count; i++)
-            {
-                if (this.stamplines[i].LineText.Length > max)
-                {
-                    max = this.stamplines[i].LineText.Length;
-                }
-            }
-            return max;
-        }
-
-        public void UpdateComponentPosition(double x, double y)
-        {
-            this.UserControlX = (int)(x * 1.25);
-            this.UserControlY = (int)(y * 1.6);
-        }
-        public int isPictureBox_OverLappingAnother(PictureBox WholePage, PictureBox Stamp)
-        {
-            System.Drawing.Rectangle intersectionArea = System.Drawing.Rectangle.Intersect(WholePage.Bounds, Stamp.Bounds);
-            //MessageBox.Show("Overlaping with size of  : " + intersectionArea.Size.ToString());
-            return intersectionArea.Size.Height;
-        }
-        public void MakeStampChildOfThePage(PictureBox WholePage, PictureBox Stamp)
-        {
-            WholePage.Controls.Add(Stamp);
-        }
-        private void eraseAllObjects()
-        {
-            string[] filePaths = Directory.GetFiles(this.PDFs_NeedToMerge_Path);
-            foreach (string filePath in filePaths)
-            {
-                File.Delete(filePath);
-            }
-            for (int i = 0; i < this.FromSinglePDF2ImagesList.Count; i++)
-            {
-                this.FromSinglePDF2ImagesList.RemoveAt(i);
-            }
-            for (int i = 0; i < this.PDFsThatSupposedToMergeInto1_PDFFile.Count; i++)
-            {
-                this.PDFsThatSupposedToMergeInto1_PDFFile.RemoveAt(i);
-            }
-            for (int i = 0; i < this.Stamps_pictureBoxList.Count; i++)
-            {
-                this.Stamps_pictureBoxList[i].Controls.Clear();
-                this.Stamps_pictureBoxList.RemoveAt(i);
-            }
+            this.DraggingScrollFix();
             for (int i = 0; i < this.PDF_Pages_pictureBoxList.Count; i++)
             {
-                this.PDF_Pages_pictureBoxList[i].Controls.Clear();
-                this.PDF_Pages_pictureBoxList.RemoveAt(i);
-            }
-            for (int i = 0; i < this.UndoList.Count; i++)
-            {
-                this.UndoList.RemoveAt(i);
-            }
-            for (int i = 0; i < this.RedoList.Count; i++)
-            {
-                this.RedoList.RemoveAt(i);
-            }
-            for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
-            {
-                for (int j = 0; j < this.AllChildrenOfPages_ByIndex[i].Count; j++)
+                if ((MainScrollablePanel.VerticalScroll.Value >= i * (this.PDF_Pages_pictureBoxList[0].Height + this.pagesPadding) - (this.Height / 2)) &&
+                     (MainScrollablePanel.VerticalScroll.Value < (i + 1) * (this.PDF_Pages_pictureBoxList[0].Height + this.pagesPadding) - (this.Height / 2)))
                 {
-                    this.AllChildrenOfPages_ByIndex[i][j].Controls.Clear();
-                    this.AllChildrenOfPages_ByIndex[i].RemoveAt(j);
-                }
-                this.AllChildrenOfPages_ByIndex.RemoveAt(i);
-            }
-            this.FromSinglePDF2ImagesList = null;
-            this.PDFsThatSupposedToMergeInto1_PDFFile = null;
-            this.PDF_Pages_pictureBoxList = null;
-            this.AllChildrenOfPages_ByIndex = null;
-            PDF_Pages_pictureBoxList = new List<PictureBox>();
-            AllChildrenOfPages_ByIndex = new List<List<PictureBox>>();
-            PDFsThatSupposedToMergeInto1_PDFFile = new List<string>();
-            FromSinglePDF2ImagesList = new List<System.Drawing.Image>();
-            this.MainScrollablePanel.Controls.Clear();
-        }
-        public void LoadPDF(string PDFFilePath)
-        {
-            if (this.AlreadySavedOnce)
-            {
-                this.eraseAllObjects();
-                this.ConverAllPDFsInsideFolderToImages(this.OUTPUTPDF);
-                //MessageBox.Show("Show input " + this.OUTPUTPDF);
-            }
-            else
-            {
-                this.ConverAllPDFsInsideFolderToImages(PDFFilePath);
-                // this.FPageSize = this.FromSinglePDF2ImagesList[0].Size;
-                // MessageBox.Show("Show input " + PDFFilePath);
-            }
-            for (int i = 0; i < this.FromSinglePDF2ImagesList.Count; i++)
-            {
-                PictureBox Page = new PictureBox();
-                Page.Image = PDFEditor.Layout.ResizeImage(this.FromSinglePDF2ImagesList[i], this.FPageSize.Width, this.FPageSize.Height);
-                Page.Location = new Point(0, ((i) * this.pagesPadding + (i * Page.Image.Height)));
-                //Page.Location = new Point(200,0);
-                Page.Size = new Size(Page.Image.Width, Page.Image.Height);
-                this.PDF_Pages_pictureBoxList.Add(Page);
-                this.MainScrollablePanel.Controls.Add(this.PDF_Pages_pictureBoxList[i]);
-                this.AllChildrenOfPages_ByIndex.Add(new List<PictureBox> { Page });
-            }
-            this.BackColor = Color.DarkGray;
-        }
-        public int ReturnOnWhatPage_isThisPictureBox(PictureBox a)
-        {
-            for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
-            {
-                for (int j = 0; j < this.AllChildrenOfPages_ByIndex[i].Count; j++)
-                {
-                    if (a == this.AllChildrenOfPages_ByIndex[i][j])
+                    if (this.onWhatPageIM_RightNow != this.onWhatPageIWas_Before)
                     {
-                        return i;
+                        new ToolTip().Show("Page " + this.onWhatPageIM_RightNow, this,
+                                            (int)(this.MainScrollablePanel.Width / 2),
+                                            (int)(this.MainScrollablePanel.Location.Y) + 20,
+                                            600);
+                    }
+                    this.onWhatPageIWas_Before = this.onWhatPageIM_RightNow;
+                    this.onWhatPageIM_RightNow = (i + 1);
+                    this.ScrolledValue = MainScrollablePanel.VerticalScroll.Value;
+                    this.ValueModuluPageSize = this.ScrolledValue % (int)((this.PDF_Pages_pictureBoxList[0].Height / 2) + this.pagesPadding);
+                    if (this.onWhatPageIWas_Before > this.onWhatPageIM_RightNow)
+                    {
+                        this.ScrollingDown = false;
+                        this.ScrollingUp = true;
+                    }
+                    else if (this.onWhatPageIWas_Before < this.onWhatPageIM_RightNow)
+                    {
+                        this.ScrollingDown = true;
+                        this.ScrollingUp = false;
                     }
                 }
             }
-            return -1;
         }
-
-        public int ReturnReturnOnWhatPage_isThisPictureBoxWhatPageIM()
-        {
-            MessageBox.Show("Page " + this.onWhatPageIM_RightNow.ToString() + " Scrolled :" + this.ScrolledValue.ToString() + "    Delta :" +
-                (this.ScrolledValue % (this.PDF_Pages_pictureBoxList[0].Height + this.pagesPadding))
-                );
-            return this.onWhatPageIM_RightNow;
-        }
-
         public void DraggingScrollFix()
         {
             int ScrollingSensetivity = 110; // Higher number is more sensetive , upper limit is around 115 (wheel scrolling size)
@@ -350,126 +191,17 @@ namespace PDFReaderImages_UserControl
             DoubleBuffered = true;
             this.MainScrollablePanel.Refresh();
         }
-
-        public void ScrollingHandele()
+        public int FindLargestRowIn_stamplines()
         {
-            this.DraggingScrollFix();
-            for (int i = 0; i < this.PDF_Pages_pictureBoxList.Count; i++)
+            int max = 0;
+            for (int i = 0; i < this.stamplines.Count; i++)
             {
-                if ((MainScrollablePanel.VerticalScroll.Value >= i * (this.PDF_Pages_pictureBoxList[0].Height + this.pagesPadding) - (this.Height / 2)) &&
-                     (MainScrollablePanel.VerticalScroll.Value < (i + 1) * (this.PDF_Pages_pictureBoxList[0].Height + this.pagesPadding) - (this.Height / 2)))
+                if (this.stamplines[i].LineText.Length > max)
                 {
-                    this.onWhatPageIWas_Before = this.onWhatPageIM_RightNow;
-
-                    this.onWhatPageIM_RightNow = (i + 1);
-                    this.ScrolledValue = MainScrollablePanel.VerticalScroll.Value;
-                    this.ValueModuluPageSize = this.ScrolledValue % (int)((this.PDF_Pages_pictureBoxList[0].Height / 2) + this.pagesPadding);
-
-                    if (this.onWhatPageIWas_Before > this.onWhatPageIM_RightNow)
-                    {
-                        this.ScrollingDown = false;
-                        this.ScrollingUp = true;
-                    }
-                    else if (this.onWhatPageIWas_Before < this.onWhatPageIM_RightNow)
-                    {
-                        this.ScrollingDown = true;
-                        this.ScrollingUp = false;
-                    }
-
+                    max = this.stamplines[i].LineText.Length;
                 }
             }
-
-
-
-        }
-        public void MergeTo1PDF(List<String> InFiles, String OutFile)
-        {
-            using (FileStream stream = new FileStream(OutFile, FileMode.Create))
-            using (Document doc = new Document())
-            using (PdfCopy pdf = new PdfCopy(doc, stream))
-            {
-                doc.Open();
-                PdfReader reader = null;
-                PdfImportedPage page = null;
-                InFiles.ForEach(file =>
-                {
-                    reader = new PdfReader(file);
-                    for (int i = 0; i < reader.NumberOfPages; i++)
-                    {
-                        page = pdf.GetImportedPage(reader, i + 1);
-                        pdf.AddPage(page);
-                    }
-                    pdf.FreeReader(reader);
-                    reader.Close();
-                });
-            }
-        }
-        public void Save_Click()
-        {
-            this.AlreadySavedOnce = true;
-            this.Show();
-            for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
-            {
-                var pgSize = new iTextSharp.text.Rectangle(this.AllChildrenOfPages_ByIndex[i][0].Width, this.AllChildrenOfPages_ByIndex[i][0].Height);
-                Document PagePDF = new Document(pgSize);
-                PdfWriter pWriter = PdfWriter.GetInstance(PagePDF, new FileStream(this.PDFs_NeedToMerge_Path + i.ToString() + ".pdf", FileMode.OpenOrCreate));
-                iTextSharp.text.Image ItextImageBackground = iTextSharp.text.Image.GetInstance(this.AllChildrenOfPages_ByIndex[i][0].Image,
-                                                             System.Drawing.Imaging.ImageFormat.Png);
-                ItextImageBackground.SetAbsolutePosition(0, 0);
-                PagePDF.Open();
-                PagePDF.Add(ItextImageBackground);
-                for (int j = 1; j < this.AllChildrenOfPages_ByIndex[i].Count; j++)
-                {
-                    if (this.AllChildrenOfPages_ByIndex[i][j].Visible)
-                    {
-                        iTextSharp.text.Image ItextImage = iTextSharp.text.Image.GetInstance(this.AllChildrenOfPages_ByIndex[i][j].Image,
-                                                         System.Drawing.Imaging.ImageFormat.Png);
-                        int OutputX = this.AllChildrenOfPages_ByIndex[i][j].Location.X;
-                        int OutputY = this.AllChildrenOfPages_ByIndex[i][0].Height - (2 * AllChildrenOfPages_ByIndex[i][j].Location.Y) + (this.AllChildrenOfPages_ByIndex[i][j].Location.Y) - this.AllChildrenOfPages_ByIndex[i][j].Height;
-                        ItextImage.SetAbsolutePosition(OutputX, OutputY);
-                        PagePDF.Add(ItextImage);
-                    }
-
-                }
-                PagePDF.Close();
-                this.PDFsThatSupposedToMergeInto1_PDFFile.Add(this.PDFs_NeedToMerge_Path + i.ToString() + ".pdf");
-            }
-            //for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
-            //{
-            //MessageBox.Show("Page " + i.ToString() + " got " + (this.AllChildrenOfPages_ByIndex[i].Count - 1).ToString() + " Stamps on it");
-            //}
-            this.MergeTo1PDF(PDFsThatSupposedToMergeInto1_PDFFile, this.OUTPUTPDF);
-            this.LoadPDF(this.OUTPUTPDF);
-        }
-        public void ConverAllPDFsInsideFolderToImages(string input)
-        {
-            SautinSoft.PdfFocus f = new SautinSoft.PdfFocus();
-            string pdfPath = input;
-            f.OpenPdf(pdfPath);
-            if (f.PageCount > 0)
-            {
-                f.ImageOptions.ImageFormat = ImageFormat.Jpeg;
-                f.ImageOptions.Dpi = this.PDF_ConvertQuality;
-                f.ImageOptions.JpegQuality = 50000;
-                for (int page = 1; page <= f.PageCount; page++)
-                {
-                    this.FromSinglePDF2ImagesList.Add(f.ToDrawingImage(page));
-                }
-            }
-            f.ClosePdf();
-            if (this.AlreadySavedOnce == false)
-            {
-                this.FPageSize = this.FromSinglePDF2ImagesList[0].Size;
-            }
-            //this.Location = new System.Drawing.Point(0, 0);
-            //this.MainScrollablePanel.Location = new System.Drawing.Point(0, 0);
-            int ScrollBarWidth = System.Windows.Forms.SystemInformation.VerticalScrollBarWidth;
-            int ScrollBarHeight = System.Windows.Forms.SystemInformation.HorizontalScrollBarHeight;
-            int TitleBarHight = System.Windows.Forms.SystemInformation.CaptionHeight;
-            if (this.AlreadySavedOnce == false)
-            {
-                this.MainScrollablePanel.Size = new System.Drawing.Size(this.Size.Width, this.Size.Height);
-            }
+            return max;
         }
         public void GenerateStamp()
         {
@@ -500,7 +232,6 @@ namespace PDFReaderImages_UserControl
                 int FontWidth = 9;
                 int FontHeight = 9;
                 float textPositionHeight = ((int)(stampHeight / 2.5)) - (textHeigh / 2);
-                //    FOR TEXT EXECTLY IN THE MIDDLE    //float textPositionHeight = ((int)(stampHeight / 2)) - (textHeigh / 2);
                 List<RectangleF> rectangles = new List<RectangleF>() { new RectangleF(0, 0, stamp.Width, stamp.Height) };
                 List<RectangleF> rectanglesShadow = new List<RectangleF>() { new RectangleF(-3, 3, stamp.Width - 3, stamp.Height + 3) };
                 foreach (var item in this.stamplines)
@@ -562,9 +293,244 @@ namespace PDFReaderImages_UserControl
             }
             ///////~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~///////
         }
-        /////////////////////////////////////////////////////////////////////////////////////////////////
-        /////////////    HOW ADDED PICTURES ARE GONNA REACT WHEN DIFFERENT EVENTS ACCURE    /////////////
-        /////////////////////////////////////////////////////////////////////////////////////////////////
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~ FUNCTIONS THAT CALCULATE IN REAL-TIME ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        public int ReturnOnWhatPage_isThisPictureBox(PictureBox a)
+        {
+            for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
+            {
+                for (int j = 0; j < this.AllChildrenOfPages_ByIndex[i].Count; j++)
+                {
+                    if (a == this.AllChildrenOfPages_ByIndex[i][j])
+                    {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+        public int isPictureBox_OverLappingAnother(PictureBox WholePage, PictureBox Stamp)
+        {
+            System.Drawing.Rectangle intersectionArea = System.Drawing.Rectangle.Intersect(WholePage.Bounds, Stamp.Bounds);
+            return intersectionArea.Size.Height;
+        }
+        public void UpdateComponentPosition(double x, double y)
+        {
+            this.UserControlX = (int)(x * 1.25);
+            this.UserControlY = (int)(y * 1.6);
+        }
+        public void MakeStampChildOfThePage(PictureBox WholePage, PictureBox Stamp)
+        {
+            WholePage.Controls.Add(Stamp);
+        }
+        private void eraseAllObjects()
+        {
+            string[] filePaths = Directory.GetFiles(this.PDFs_NeedToMerge_Path);
+            foreach (string filePath in filePaths)
+            {
+                File.Delete(filePath);
+            }
+            for (int i = 0; i < this.FromSinglePDF2ImagesList.Count; i++)
+            {
+                this.FromSinglePDF2ImagesList.RemoveAt(i);
+            }
+            for (int i = 0; i < this.PDFsThatSupposedToMergeInto1_PDFFile.Count; i++)
+            {
+                this.PDFsThatSupposedToMergeInto1_PDFFile.RemoveAt(i);
+            }
+            for (int i = 0; i < this.Stamps_pictureBoxList.Count; i++)
+            {
+                this.Stamps_pictureBoxList[i].Controls.Clear();
+                this.Stamps_pictureBoxList.RemoveAt(i);
+            }
+            for (int i = 0; i < this.PDF_Pages_pictureBoxList.Count; i++)
+            {
+                this.PDF_Pages_pictureBoxList[i].Controls.Clear();
+                this.PDF_Pages_pictureBoxList.RemoveAt(i);
+            }
+            for (int i = 0; i < this.UndoList.Count; i++)
+            {
+                this.UndoList.RemoveAt(i);
+            }
+            for (int i = 0; i < this.RedoList.Count; i++)
+            {
+                this.RedoList.RemoveAt(i);
+            }
+            for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
+            {
+                for (int j = 0; j < this.AllChildrenOfPages_ByIndex[i].Count; j++)
+                {
+                    this.AllChildrenOfPages_ByIndex[i][j].Controls.Clear();
+                    this.AllChildrenOfPages_ByIndex[i].RemoveAt(j);
+                }
+                this.AllChildrenOfPages_ByIndex.RemoveAt(i);
+            }
+            this.FromSinglePDF2ImagesList = null;
+            this.PDFsThatSupposedToMergeInto1_PDFFile = null;
+            this.PDF_Pages_pictureBoxList = null;
+            this.AllChildrenOfPages_ByIndex = null;
+            PDF_Pages_pictureBoxList = new List<PictureBox>();
+            AllChildrenOfPages_ByIndex = new List<List<PictureBox>>();
+            PDFsThatSupposedToMergeInto1_PDFFile = new List<string>();
+            FromSinglePDF2ImagesList = new List<System.Drawing.Image>();
+            this.MainScrollablePanel.Controls.Clear();
+        }
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PDF FILE HANDLING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        public void ConverAllPDFsInsideFolderToImages(string input)
+        {
+            SautinSoft.PdfFocus f = new SautinSoft.PdfFocus();
+            string pdfPath = input;
+            f.OpenPdf(pdfPath);
+            if (f.PageCount > 0)
+            {
+                f.ImageOptions.ImageFormat = ImageFormat.Jpeg;
+                f.ImageOptions.Dpi = this.PDF_ConvertQuality;
+                f.ImageOptions.JpegQuality = 50000;
+                for (int page = 1; page <= f.PageCount; page++)
+                {
+                    this.FromSinglePDF2ImagesList.Add(f.ToDrawingImage(page));
+                }
+            }
+            f.ClosePdf();
+            if (this.AlreadySavedOnce == false)
+            {
+                this.FPageSize = this.FromSinglePDF2ImagesList[0].Size;
+            }
+            int ScrollBarWidth = System.Windows.Forms.SystemInformation.VerticalScrollBarWidth;
+            int ScrollBarHeight = System.Windows.Forms.SystemInformation.HorizontalScrollBarHeight;
+            int TitleBarHight = System.Windows.Forms.SystemInformation.CaptionHeight;
+            if (this.AlreadySavedOnce == false)
+            {
+                this.MainScrollablePanel.Size = new System.Drawing.Size(this.Size.Width, this.Size.Height);
+            }
+        }
+        public void LoadPDF(string PDFFilePath)
+        {
+            if (this.AlreadySavedOnce)
+            {
+                this.eraseAllObjects();
+                this.ConverAllPDFsInsideFolderToImages(this.OUTPUTPDF);
+            }
+            else
+            {
+                this.ConverAllPDFsInsideFolderToImages(PDFFilePath);
+            }
+            for (int i = 0; i < this.FromSinglePDF2ImagesList.Count; i++)
+            {
+                PictureBox Page = new PictureBox();
+                Page.Image = PDFEditor.Layout.ResizeImage(this.FromSinglePDF2ImagesList[i], this.FPageSize.Width, this.FPageSize.Height);
+                Page.Location = new Point(0, ((i) * this.pagesPadding + (i * Page.Image.Height)));
+                Page.Size = new Size(Page.Image.Width, Page.Image.Height);
+                this.PDF_Pages_pictureBoxList.Add(Page);
+                this.MainScrollablePanel.Controls.Add(this.PDF_Pages_pictureBoxList[i]);
+                this.AllChildrenOfPages_ByIndex.Add(new List<PictureBox> { Page });
+            }
+            this.BackColor = Color.DarkGray;
+        }
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PDF FILE SAVING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        public void MergeTo1PDF(List<String> InFiles, String OutFile)
+        {
+            using (FileStream stream = new FileStream(OutFile, FileMode.Create))
+            using (Document doc = new Document())
+            using (PdfCopy pdf = new PdfCopy(doc, stream))
+            {
+                doc.Open();
+                PdfReader reader = null;
+                PdfImportedPage page = null;
+                InFiles.ForEach(file =>
+                {
+                    reader = new PdfReader(file);
+                    for (int i = 0; i < reader.NumberOfPages; i++)
+                    {
+                        page = pdf.GetImportedPage(reader, i + 1);
+                        pdf.AddPage(page);
+                    }
+                    pdf.FreeReader(reader);
+                    reader.Close();
+                });
+            }
+        }
+        public void Save_Click()
+        {
+            this.AlreadySavedOnce = true;
+            this.Show();
+            for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
+            {
+                var pgSize = new iTextSharp.text.Rectangle(this.AllChildrenOfPages_ByIndex[i][0].Width, this.AllChildrenOfPages_ByIndex[i][0].Height);
+                Document PagePDF = new Document(pgSize);
+                PdfWriter pWriter = PdfWriter.GetInstance(PagePDF, new FileStream(this.PDFs_NeedToMerge_Path + i.ToString() + ".pdf", FileMode.OpenOrCreate));
+                iTextSharp.text.Image ItextImageBackground = iTextSharp.text.Image.GetInstance(this.AllChildrenOfPages_ByIndex[i][0].Image,
+                                                             System.Drawing.Imaging.ImageFormat.Png);
+                ItextImageBackground.SetAbsolutePosition(0, 0);
+                PagePDF.Open();
+                PagePDF.Add(ItextImageBackground);
+                for (int j = 1; j < this.AllChildrenOfPages_ByIndex[i].Count; j++)
+                {
+                    if (this.AllChildrenOfPages_ByIndex[i][j].Visible)
+                    {
+                        iTextSharp.text.Image ItextImage = iTextSharp.text.Image.GetInstance(this.AllChildrenOfPages_ByIndex[i][j].Image,
+                                                         System.Drawing.Imaging.ImageFormat.Png);
+                        int OutputX = this.AllChildrenOfPages_ByIndex[i][j].Location.X;
+                        int OutputY = this.AllChildrenOfPages_ByIndex[i][0].Height - (2 * AllChildrenOfPages_ByIndex[i][j].Location.Y) + (this.AllChildrenOfPages_ByIndex[i][j].Location.Y) - this.AllChildrenOfPages_ByIndex[i][j].Height;
+                        ItextImage.SetAbsolutePosition(OutputX, OutputY);
+                        PagePDF.Add(ItextImage);
+                    }
+
+                }
+                PagePDF.Close();
+                this.PDFsThatSupposedToMergeInto1_PDFFile.Add(this.PDFs_NeedToMerge_Path + i.ToString() + ".pdf");
+            }
+            this.MergeTo1PDF(PDFsThatSupposedToMergeInto1_PDFFile, this.OUTPUTPDF);
+            this.LoadPDF(this.OUTPUTPDF);
+        }
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FUNCTIONAL METHODS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        public void UndoAction()
+        {
+            this.eraseAllRedo = false;
+            if (this.UndoList.Count > 0)
+            {
+                this.UndoList[this.UndoList.Count - 1].Visible = false;
+                this.RedoList.Add(this.UndoList[this.UndoList.Count - 1]);
+                this.UndoList.RemoveAt(this.UndoList.Count - 1);
+            }
+        }
+        public void RedoAction()
+        {
+            if ((this.RedoList.Count > 0) && (this.eraseAllRedo != true))
+            {
+                this.RedoList[this.RedoList.Count - 1].Visible = true;
+                this.UndoList.Add(this.RedoList[this.RedoList.Count - 1]);
+                this.RedoList.RemoveAt(this.RedoList.Count - 1);
+            }
+            else
+            {
+                for (int i = 0; i < this.RedoList.Count; i++)
+                {
+                    this.RedoList.RemoveAt(i);
+                    this.RedoList = null;
+                    this.RedoList = new List<PictureBox>();
+                }
+            }
+        }
+        public void PrintStatsCoords()
+        {
+            MessageBox.Show("this parent:      " + this.Parent.Location.ToString());
+            MessageBox.Show("this window:      [" + this.WindowX.ToString() + "," + this.WindowY.ToString() + "]");
+            MessageBox.Show("this parent size:      " + this.Parent.Size.ToString());
+            MessageBox.Show("this Scroll Y:    " + this.MainScrollablePanel.VerticalScroll.Value.ToString());
+            MessageBox.Show("this Panel Location:    " + this.MainScrollablePanel.Location.ToString());
+            MessageBox.Show("this Panel Size:    " + this.MainScrollablePanel.Size.ToString());
+            MessageBox.Show("this Location:    " + this.Location.ToString());
+            MessageBox.Show("this Size:    " + this.Size.ToString());
+            MessageBox.Show("this Page Y:      " + this.PDF_Pages_pictureBoxList[this.onWhatPageIM_RightNow - 1].Location.Y.ToString());
+            MessageBox.Show("this Mouse:       " + MousePosition.ToString());
+            MessageBox.Show("UserControl Location [" + this.UserControlX.ToString() + "," + this.UserControlY.ToString() + "]");
+        }
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~ HOW ADDED PICTURES ARE GONNA REACT WHEN DIFFERENT EVENTS ACCURE ~~~~||
         public void TestPic_MouseDown(object sender, EventArgs e)
         {
             Console.WriteLine("MouseDown");
@@ -612,11 +578,6 @@ namespace PDFReaderImages_UserControl
             int WindowBorder = 1;
             int WindowTopBar = System.Windows.Forms.SystemInformation.CaptionHeight;
             Control c = sender as Control;
-            /*MessageBox.Show("MousePosition  ["+MousePosition.ToString()+"]\n" +
-                            "ParentLocation ["+this.Parent.Location.ToString()+"]\n" +
-                            "Window         ["+this.WindowX.ToString()+","+this.WindowY.ToString()+"]\n" +
-                            "thisLocation   ["+this.Location.ToString()+"]\n" +
-                            "MainPanel      ["+this.MainScrollablePanel.Location.ToString()+"]");*/
             if ((this.Dragging) && (c != null) && (1 + this.ReturnOnWhatPage_isThisPictureBox(((PictureBox)sender)) == this.onWhatPageIM_RightNow))
             {
                 c.Location = new Point((int)(MousePosition.X - this.Parent.Location.X - (c.Width / 2) - (Cursor.Size.Width / 4)) + 1 - this.WindowX - this.Location.X,
@@ -643,18 +604,16 @@ namespace PDFReaderImages_UserControl
                 Cursor.Clip = new System.Drawing.Rectangle(-2,-2,-1,-1);
             }
         }
-        ////////////////////////////////////////////////////////////////////////////////////////////////
-        /////////////////////////////////////////////////////////////////////////////////
-        ////   IMAGES BUTTON CLICKED TO SELECT IMAGE FROM PC AND PASS IT TO FUNCTION ////
-        /////////////////////////////////////////////////////////////////////////////////
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE STAMP AT MOUSE LOCATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         public void ApprovedStamp_Click(int WinX, int WinY)
         {
+            int overlap = 0;
+            int CurrentIndex = -1;
             this.eraseAllRedo = true;
             this.Dragging = true;
             this.UpdateWindowPosition(WinX, WinY);
-            /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //   CREATE NEW IMAGE INSTANCE ON YOUR PAGE CENTER POSITION AND IF YOU MOVE MOUSE PIC WILL MOVE TOO UNTIL MOUSECLICK   //
-            /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            #region ||~~~~~~~ CREATE NEW IMAGE INSTANCE ON YOUR PAGE CENTER POSITION AND IF YOU MOVE MOUSE PIC WILL MOVE TOO UNTIL MOUSECLICK ~~~~~~~||
             System.Drawing.Image LoadingImage = this.DifferantStamps[0];
 
             var TestPic = new PictureBox
@@ -663,7 +622,6 @@ namespace PDFReaderImages_UserControl
                 Size = new Size(LoadingImage.Width, LoadingImage.Height),
                 Location = new Point((this.PDF_Pages_pictureBoxList[0].Width / 2) - (LoadingImage.Width / 2),
                                      100+this.ValueModuluPageSize),
-                // Location = new Point((this.PDF_Pages_pictureBoxList[0].Width/2)-(LoadingImage.Width/2) , (this.PDF_Pages_pictureBoxList[0].Height / 2) - (LoadingImage.Height / 2)),
                 BackColor = Color.Transparent,
                 Image = LoadingImage,
             };
@@ -672,17 +630,11 @@ namespace PDFReaderImages_UserControl
             TestPic.MouseUp += new System.Windows.Forms.MouseEventHandler(TestPic_MouseUp);
             TestPic.Visible = true;
             Stamps_pictureBoxList.Add(TestPic);
-            ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //MessageBox.Show("MousePosition = "+ MousePosition.X+"    WindowX = "+this.WindowX+"    StampWidth = "+TestPic.Width
-            //    +"      PDF_Position = "+ this.PDF_Pages_pictureBoxList[0].Location.X+"     Stamp Position = "+TestPic.Location.X);
+            #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
             this.UndoList.Add(TestPic);
-            int overlap = 0;
-            int CurrentIndex = -1;
             for (int i = 0; i < this.PDF_Pages_pictureBoxList.Count; i++)
             {
                 int TempOverlap = isPictureBox_OverLappingAnother(this.PDF_Pages_pictureBoxList[i], TestPic);
-                //MessageBox.Show("Page Y : " + this.PDF_Pages_pictureBoxList[i].Location.Y.ToString() + "  MouseX : " + MousePosition.X.ToString() + "  MouseY : " + MousePosition.Y.ToString());
-                //MessageBox.Show("TestPicLocation : " + TestPic.Location.ToString());
                 if (TempOverlap >= overlap)
                 {
                     overlap = TempOverlap;
@@ -693,6 +645,11 @@ namespace PDFReaderImages_UserControl
             this.AllChildrenOfPages_ByIndex[CurrentIndex].Add(TestPic);
             TestPic.BringToFront();
             Cursor.Position = new Point(TestPic.Location.X + (TestPic.Width/2)+this.WindowX+this.Location.X, TestPic.Location.Y + (TestPic.Height)+this.WindowY+this.Location.Y-this.ValueModuluPageSize);
+            new ToolTip().Show("Added to Page " + (CurrentIndex+1).ToString(), this,
+                                            (int)(this.MainScrollablePanel.Width / 2),
+                                            (int)(this.MainScrollablePanel.Location.Y) + 20,
+                                            600);
         }
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
     }
 }
