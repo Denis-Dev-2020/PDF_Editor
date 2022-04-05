@@ -530,7 +530,7 @@ namespace PDFReaderImages_UserControl
             MessageBox.Show("UserControl Location [" + this.UserControlX.ToString() + "," + this.UserControlY.ToString() + "]");
         }
         #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
-        #region ||~~~~ HOW ADDED PICTURES ARE GONNA REACT WHEN DIFFERENT EVENTS ACCURE ~~~~||
+        #region ||~~~~~~~~~~~~~~ HOW ADDED PICTURES ARE GONNA REACT WHEN DIFFERENT EVENTS ACCURE ~~~~~~~~~~~~~~~||
         public void TestPic_MouseDown(object sender, EventArgs e)
         {
             Console.WriteLine("MouseDown");
@@ -604,8 +604,8 @@ namespace PDFReaderImages_UserControl
                 Cursor.Clip = new System.Drawing.Rectangle(-2,-2,-1,-1);
             }
         }
-        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
-        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE STAMP AT MOUSE LOCATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #region ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CREATE STAMP AT MOUSE LOCATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         public void ApprovedStamp_Click(int WinX, int WinY)
         {
             int overlap = 0;
@@ -650,6 +650,6 @@ namespace PDFReaderImages_UserControl
                                             (int)(this.MainScrollablePanel.Location.Y) + 20,
                                             600);
         }
-        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+        #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
     }
 }
