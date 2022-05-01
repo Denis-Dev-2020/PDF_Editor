@@ -49,6 +49,7 @@
  */
 #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
 #region || ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PDF-Editor 2022 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+#region || ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ REQUIRED IMPORTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -60,6 +61,7 @@ using System.Threading;
 using System.Windows.Forms;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
+#endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
 namespace PDFReaderImages_UserControl
 {
     public partial class UserControl1 : UserControl
@@ -107,6 +109,9 @@ namespace PDFReaderImages_UserControl
         List<PDFEditor.StampLine> stamplines = new List<PDFEditor.StampLine>();
         List<PictureBox> UndoList = new List<PictureBox>();
         List<PictureBox> RedoList = new List<PictureBox>();
+        List<List<PictureBox>> UndoList_WithMultActions = new List<List<PictureBox>>();
+        List<List<PictureBox>> RedoList_WithMultActions = new List<List<PictureBox>>();
+        List<PictureBox> UndoList_WithMultActions_WaitingList = new List<PictureBox>();
         #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         public UserControl1()
         {
@@ -406,6 +411,24 @@ namespace PDFReaderImages_UserControl
             {
                 this.RedoList.RemoveAt(i);
             }
+            for (int i = 0; i < this.UndoList_WithMultActions.Count; i++)
+            {
+                for (int j = 0; j < this.UndoList_WithMultActions[i].Count; j++)
+                {
+                    this.UndoList_WithMultActions[i][j].Controls.Clear();
+                    this.UndoList_WithMultActions[i].RemoveAt(j);
+                }
+                this.UndoList_WithMultActions.RemoveAt(i);
+            }
+            for (int i = 0; i < this.RedoList_WithMultActions.Count; i++)
+            {
+                for (int j = 0; j < this.RedoList_WithMultActions[i].Count; j++)
+                {
+                    this.RedoList_WithMultActions[i][j].Controls.Clear();
+                    this.RedoList_WithMultActions[i].RemoveAt(j);
+                }
+                this.RedoList_WithMultActions.RemoveAt(i);
+            }
             for (int i = 0; i < this.AllChildrenOfPages_ByIndex.Count; i++)
             {
                 for (int j = 0; j < this.AllChildrenOfPages_ByIndex[i].Count; j++)
@@ -419,10 +442,12 @@ namespace PDFReaderImages_UserControl
             this.PDFsThatSupposedToMergeInto1_PDFFile = null;
             this.PDF_Pages_pictureBoxList = null;
             this.AllChildrenOfPages_ByIndex = null;
-            PDF_Pages_pictureBoxList = new List<PictureBox>();
-            AllChildrenOfPages_ByIndex = new List<List<PictureBox>>();
-            PDFsThatSupposedToMergeInto1_PDFFile = new List<string>();
-            FromSinglePDF2ImagesList = new List<System.Drawing.Image>();
+            this.PDF_Pages_pictureBoxList = new List<PictureBox>();
+            this.AllChildrenOfPages_ByIndex = new List<List<PictureBox>>();
+            this.PDFsThatSupposedToMergeInto1_PDFFile = new List<string>();
+            this.FromSinglePDF2ImagesList = new List<System.Drawing.Image>();
+            this.UndoList_WithMultActions = new List<List<PictureBox>>();
+            this.RedoList_WithMultActions = new List<List<PictureBox>>();
             this.MainScrollablePanel.Controls.Clear();
         }
         #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
@@ -540,12 +565,46 @@ namespace PDFReaderImages_UserControl
         public void UndoAction()
         {
             this.eraseAllRedo = false;
-            if (this.UndoList.Count > 0)
+            /*if (this.UndoList.Count > 0)
             {
                 this.UndoList[this.UndoList.Count - 1].Visible = false;
                 this.RedoList.Add(this.UndoList[this.UndoList.Count - 1]);
                 this.UndoList.RemoveAt(this.UndoList.Count - 1);
+
+            }*/
+            
+
+            if (this.UndoList_WithMultActions_WaitingList.Count > 0)
+            {
+                int searchingIndex = -1;
+                for (int i = 0; i < this.UndoList_WithMultActions.Count; i++)
+                {
+                    if (((PictureBox)this.UndoList_WithMultActions_WaitingList[this.UndoList_WithMultActions_WaitingList.Count - 1]) == this.UndoList_WithMultActions[i][0] && this.UndoList_WithMultActions[i].Count > 0)
+                    {
+                        searchingIndex = i;
+
+                    }
+                }
+                if (searchingIndex > -1)
+                {
+                    this.UndoList_WithMultActions[searchingIndex][0].Location = new Point(
+                                                                                this.UndoList_WithMultActions[searchingIndex][this.UndoList_WithMultActions[searchingIndex].Count - 2].Location.X,
+                                                                                this.UndoList_WithMultActions[searchingIndex][this.UndoList_WithMultActions[searchingIndex].Count - 2].Location.Y);
+                    this.UndoList_WithMultActions[searchingIndex].RemoveAt(this.UndoList_WithMultActions[searchingIndex].Count - 1);
+                    this.UndoList_WithMultActions_WaitingList.RemoveAt(this.UndoList_WithMultActions_WaitingList.Count - 1);
+                    Invalidate();
+                }
+                else
+                {
+                    this.UndoList_WithMultActions_WaitingList[this.UndoList_WithMultActions_WaitingList.Count - 1].Visible = false;
+                    this.RedoList.Add(this.UndoList_WithMultActions_WaitingList[this.UndoList_WithMultActions_WaitingList.Count - 1]);
+                    this.UndoList_WithMultActions_WaitingList.RemoveAt(this.UndoList_WithMultActions_WaitingList.Count - 1);
+                }
+
             }
+
+
+
         }
         public void RedoAction()
         {
@@ -567,6 +626,7 @@ namespace PDFReaderImages_UserControl
         }
         public void PrintStatsCoords()
         {
+            /*
             MessageBox.Show("this parent:      " + this.Parent.Location.ToString());
             MessageBox.Show("this window:      [" + this.WindowX.ToString() + "," + this.WindowY.ToString() + "]");
             MessageBox.Show("this parent size:      " + this.Parent.Size.ToString());
@@ -578,16 +638,40 @@ namespace PDFReaderImages_UserControl
             MessageBox.Show("this Page Y:      " + this.PDF_Pages_pictureBoxList[this.onWhatPageIM_RightNow - 1].Location.Y.ToString());
             MessageBox.Show("this Mouse:       " + MousePosition.ToString());
             MessageBox.Show("UserControl Location [" + this.UserControlX.ToString() + "," + this.UserControlY.ToString() + "]");
+            */
+            for (int i = 0; i < this.UndoList_WithMultActions[2].Count; i++)
+            {
+                MessageBox.Show(this.UndoList_WithMultActions[2][i].Location.ToString());
+            }
+
         }
         #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
         #region ||~~~~~~~~~~~~~~ HOW ADDED PICTURES ARE GONNA REACT WHEN DIFFERENT EVENTS ACCURE ~~~~~~~~~~~~~~~||
         public void TestPic_MouseDown(object sender, EventArgs e)
         {
+            int searchingIndex = -1;
+            for (int i = 0; i < this.UndoList_WithMultActions.Count; i++)
+            {
+                if (((PictureBox)sender)== this.UndoList_WithMultActions[i][0])
+                {
+                    searchingIndex = i;
+                }
+            }
             Console.WriteLine("MouseDown");
             if (this.Dragging == true)
             {
                 this.Dragging = false;
                 this.Cursor = Cursors.Default;
+                var Temp4UndoRedoPictureBox = new PictureBox
+                {
+                    Name = "pictureBox",
+                    Size = new Size(((PictureBox)sender).Width, ((PictureBox)sender).Height),
+                    Location = new Point(((PictureBox)sender).Location.X, ((PictureBox)sender).Location.Y),
+                    BackColor = Color.Transparent,
+                    Image = ((PictureBox)sender).Image,
+                };
+                this.UndoList_WithMultActions[searchingIndex].Add(Temp4UndoRedoPictureBox);
+                this.UndoList_WithMultActions_WaitingList.Add(Temp4UndoRedoPictureBox);
             }
             else
             {
@@ -596,6 +680,7 @@ namespace PDFReaderImages_UserControl
             }
             ((PictureBox)sender).BorderStyle = BorderStyle.None;
         }
+
         public void TestPic_MouseUp(object sender, EventArgs e)
         {
             Console.WriteLine("MouseUp" + "   " + this.pagesPadding);
@@ -631,7 +716,7 @@ namespace PDFReaderImages_UserControl
             if ((this.Dragging) && (c != null) && (1 + this.ReturnOnWhatPage_isThisPictureBox(((PictureBox)sender)) == this.onWhatPageIM_RightNow))
             {
                 c.Location = new Point((int)(MousePosition.X - this.Parent.Location.X - (c.Width / 2) - (Cursor.Size.Width / 4)) + 1 - this.WindowX - this.Location.X,
-                                       (int)(MousePosition.Y - this.Parent.Location.Y - (c.Height / 2) - (Cursor.Size.Height)) + 1 - (One * (temp)) + (this.ValueModuluPageSize * zero) - this.WindowY - this.Location.Y- MagicNumber);
+                                       (int)(MousePosition.Y - this.Parent.Location.Y - (c.Height / 2) - (Cursor.Size.Height)) + 1 - (One * (temp))+70 + (this.ValueModuluPageSize * zero) - this.WindowY - this.Location.Y- MagicNumber);
 
                 ((PictureBox)sender).BorderStyle = BorderStyle.FixedSingle;
                 this.Cursor = Cursors.Cross;
@@ -682,6 +767,9 @@ namespace PDFReaderImages_UserControl
             Stamps_pictureBoxList.Add(TestPic);
             #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
             this.UndoList.Add(TestPic);
+
+            this.UndoList_WithMultActions.Add(new List<PictureBox> { TestPic });
+            this.UndoList_WithMultActions_WaitingList.Add(TestPic);
             for (int i = 0; i < this.PDF_Pages_pictureBoxList.Count; i++)
             {
                 int TempOverlap = isPictureBox_OverLappingAnother(this.PDF_Pages_pictureBoxList[i], TestPic);
@@ -703,4 +791,4 @@ namespace PDFReaderImages_UserControl
         #endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
     }
 }
-#endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
+#endregion ||~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~||
