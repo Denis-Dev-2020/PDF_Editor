@@ -1,0 +1,91 @@
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+
+namespace PDFEditor
+
+{
+    public class Usr_Action
+    {
+        PictureBox Pointer2PictureBox = new PictureBox();
+        int onWhatPageActionHappend = 0;
+        Rectangle Location = new Rectangle(0, 0, 0, 0);
+        string ActionTypeString = "";
+        public Usr_Action(){}
+        public void setText(string a)
+        {
+            this.ActionTypeString = a;
+        }
+        public string getText()
+        {
+            return ActionTypeString;
+        }
+        public void setLocation(int x1, int y1, int x2, int  y2)
+        {
+            this.Location.Location = new Point(x1, y1);
+            this.Location.Width = x2 - x1;
+            this.Location.Height = y2 - y1;
+        }
+        public int[] getLocation()
+        {
+            int[] array = new int[4];
+            array[0] = this.Location.X;
+            array[1] = this.Location.Y;
+            array[2] = array[0] + this.Location.Width;
+            array[3] = array[1] + this.Location.Height;
+            return array;
+        }
+        public void setOnWhatPage(int x)
+        {
+            this.onWhatPageActionHappend = x;
+        }
+        public int getOnWhatPage()
+        {
+            return this.onWhatPageActionHappend;
+        }
+        public void setPictureBox(PictureBox x)
+        {
+            this.Pointer2PictureBox = x;
+        }
+        public PictureBox getPictureBox()
+        {
+            return this.Pointer2PictureBox;
+        }
+        public bool CompareObjects()
+        {
+            return false;
+        }
+    }
+
+    public class Layout
+    {
+        public Layout(){}
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////////////   RESIZING IMAGES FUNCTION   ///////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        public static Bitmap ResizeImage(System.Drawing.Image image, int width, int height)
+        {
+            var destRect = new System.Drawing.Rectangle(0, 0, width, height);
+            var destImage = new Bitmap(width, height);
+            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+            using (var graphics = Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using (var wrapMode = new ImageAttributes())
+                {
+                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                }
+            }
+            return destImage;
+        }
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    }
+}
